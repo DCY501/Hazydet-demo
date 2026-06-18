@@ -1,6 +1,14 @@
 """
 Hazydet Demo 后端入口
 """
+import sys
+from pathlib import Path
+
+# 优先使用项目自带的 ultralytics 修改版（包含 AFFM/RSM/RRAM 等自定义模块）
+_BACKEND_DIR = Path(__file__).resolve().parent.parent
+if str(_BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_DIR))
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
