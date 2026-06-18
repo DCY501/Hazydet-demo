@@ -22,3 +22,7 @@ dist/
 .vscode/
 .idea/
 *.iml
+
+# Auto-generated
+frontend/src/auto-imports.d.ts
+frontend/src/components.d.ts

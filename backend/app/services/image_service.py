@@ -45,10 +45,18 @@ def detect_image(input_path: Path, model_key: str) -> dict:
     detections, class_distribution = parse_detection_results(result)
     metrics = compute_metrics(detections)
 
+    # 提取推理耗时（YOLO speed 字典包含 preprocess/inference/postprocess，单位 ms）
+    inference_ms = 0.0
+    if hasattr(result, "speed") and isinstance(result.speed, dict):
+        inference_ms = round(result.speed.get("inference", 0.0), 2)
+
     return {
         "result_url": f"/results/images/{result_filename}",
-        "count": metrics["count"],
-        "avg_confidence": metrics["avg_confidence"],
+        "metrics": {
+            "count": metrics["count"],
+            "avg_conf": metrics["avg_conf"],
+            "inference_ms": inference_ms,
+        },
         "detections": detections,
         "class_distribution": class_distribution,
     }

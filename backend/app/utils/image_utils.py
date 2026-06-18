@@ -131,7 +131,7 @@ def parse_detection_results(result) -> Tuple[list, dict]:
         cls_name = names.get(cls_id, str(cls_id))
 
         detections.append({
-            "class": cls_name,
+            "class_name": cls_name,
             "confidence": round(conf, 3),
             "bbox": [round(x1), round(y1), round(x2), round(y2)],
         })
@@ -149,5 +149,5 @@ def compute_metrics(detections: list) -> dict:
     confidences = [d["confidence"] for d in detections]
     return {
         "count": len(detections),
-        "avg_confidence": round(sum(confidences) / len(confidences), 3),
+        "avg_conf": round(sum(confidences) / len(confidences), 3),
     }
