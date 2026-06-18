@@ -10,7 +10,7 @@
       <el-image
         :src="item.url"
         fit="contain"
-        :preview-src-list="items.map((i) => i.url)"
+        :preview-src-list="previewList"
         class="compare-image"
       >
         <template #error>
@@ -36,6 +36,10 @@ const props = defineProps<{
 const columnWidth = computed(() => {
   const count = props.items.length || 1
   return `${100 / count}%`
+})
+
+const previewList = computed(() => {
+  return props.items.map((i) => i.url).filter((url): url is string => !!url)
 })
 </script>
 

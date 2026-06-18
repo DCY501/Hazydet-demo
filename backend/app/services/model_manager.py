@@ -1,11 +1,16 @@
 """
 模型管理器
 
-负责按需加载 YOLO 模型。只有权重文件存在时才会加载，
+负责按需加载检测模型。只有权重文件存在时才会加载，
 不存在的模型会在 API 中标记为不可用。
+
+新增模型方案时：
+    1. 在 app.models 下实现继承 HazyDetModel 的类
+    2. 在 app.models.model_factory 中注册
+    3. 在 app.config.MODELS 中添加配置
 """
-from ultralytics import YOLO
 from app.config import MODELS
+from app.models import create_model
 
 
 class ModelManager:
@@ -23,7 +28,7 @@ class ModelManager:
             if path.exists():
                 try:
                     print(f"[ModelManager] 加载模型: {key} -> {path}")
-                    self._models[key] = YOLO(str(path))
+                    self._models[key] = create_model(key, path)
                     self._availability[key] = True
                 except Exception as e:
                     print(f"[ModelManager] 加载失败 {key}: {e}")
@@ -33,7 +38,7 @@ class ModelManager:
                 self._availability[key] = False
 
     def get(self, model_key: str):
-        """获取已加载的模型。"""
+        """获取已加载的模型实例。"""
         return self._models.get(model_key)
 
     def is_available(self, model_key: str) -> bool:
@@ -41,10 +46,11 @@ class ModelManager:
         return self._availability.get(model_key, False)
 
     def available_models(self) -> dict:
-        """返回所有可用模型的配置信息。"""
+        """返回所有已配置模型的信息及可用状态。"""
         result = {}
         for key, cfg in MODELS.items():
             result[key] = {
+                "key": key,
                 "name": cfg["name"],
                 "description": cfg["description"],
                 "available": self._availability.get(key, False),

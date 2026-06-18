@@ -17,7 +17,8 @@ export const useAppStore = defineStore('app', () => {
   async function fetchModels() {
     try {
       const res: any = await getModels()
-      availableModels.value = res.models || []
+      const models = res.models || {}
+      availableModels.value = Object.values(models)
     } catch (error) {
       console.error('获取模型列表失败', error)
       availableModels.value = []

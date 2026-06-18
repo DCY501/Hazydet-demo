@@ -12,7 +12,7 @@ router = APIRouter(prefix="/intermediate", tags=["中间结果"])
 
 @router.post("")
 async def intermediate(
-    image: UploadFile = File(..., description="上传的图片"),
+    file: UploadFile = File(..., description="上传的图片"),
     model: str = Form("phase2", description="模型名称：baseline / phase1 / phase2"),
 ):
     """
@@ -20,9 +20,9 @@ async def intermediate(
 
     - baseline: 无中间结果
     - phase1: 返回去雾增强图
-    - phase2: 返回 clear/transmission/atmosphere/reconstruction 等（后续实现）
+    - phase2: 返回 jhat/transmission/atmosphere/reconstruction 等（后续实现）
     """
-    validate_image(image)
+    validate_image(file)
 
     if not model_manager.is_available(model):
         return {
@@ -31,7 +31,7 @@ async def intermediate(
             "available_models": model_manager.available_models(),
         }
 
-    input_path = save_upload_file(image)
+    input_path = save_upload_file(file)
 
     # 先跑检测，得到结果图
     detect_result = detect_image(input_path, model)
@@ -43,7 +43,6 @@ async def intermediate(
         "success": True,
         "model": model,
         "result_url": detect_result["result_url"],
-        "count": detect_result["count"],
-        "avg_confidence": detect_result["avg_confidence"],
+        "metrics": detect_result["metrics"],
         **intermediate_result,
     }

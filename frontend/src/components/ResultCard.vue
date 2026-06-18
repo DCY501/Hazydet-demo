@@ -1,5 +1,5 @@
 <template>
-  <el-card class="result-card" shadow="hover" v-loading="loading">
+  <el-card class="result-card" shadow="hover" v-loading="!!loading">
     <template #header>
       <div class="card-header">
         <span>{{ title }}</span>
@@ -61,14 +61,21 @@ interface Metrics {
   inference_ms?: number
 }
 
-defineProps<{
-  title: string
-  imageUrl?: string
-  modelName?: string
-  metrics?: Metrics
-  detections?: Detection[]
-  loading?: boolean
-}>()
+withDefaults(
+  defineProps<{
+    title: string
+    imageUrl?: string
+    modelName?: string
+    metrics?: Metrics
+    detections?: Detection[]
+    loading?: boolean
+  }>(),
+  {
+    imageUrl: '',
+    modelName: '',
+    loading: false,
+  }
+)
 </script>
 
 <style scoped lang="scss">

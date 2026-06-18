@@ -33,8 +33,7 @@ def detect_image(input_path: Path, model_key: str) -> dict:
         raise ValueError(f"模型不可用: {model_key}")
 
     model = model_manager.get(model_key)
-    results = model(str(input_path))
-    result = results[0]
+    result = model.predict(input_path)
 
     # 保存结果图
     result_filename = generate_result_filename(prefix=model_key)
@@ -117,7 +116,7 @@ def get_intermediate_results(input_path: Path, model_key: str) -> dict:
     不同模型返回不同的中间结果，字段可扩展。
     目前：
     - phase1: dehazed
-    - phase2: clear, transmission, atmosphere, reconstruction（占位，后续实现）
+    - phase2: jhat, transmission, atmosphere, reconstruction
     - baseline: 无
     """
     if not model_manager.is_available(model_key):
@@ -127,14 +126,24 @@ def get_intermediate_results(input_path: Path, model_key: str) -> dict:
     if not cfg.get("has_intermediate", False):
         return {"intermediate": {}}
 
-    # TODO: 根据模型实际结构提取中间结果
-    # 目前先返回占位符，后续根据 phase1/phase2 的具体实现补充
+    model = model_manager.get(model_key)
+    intermediate = model.intermediate(input_path)
 
-    intermediate_types = cfg.get("intermediate_types", [])
-    intermediate = {}
+    # 将中间结果保存为图片并返回 URL（占位阶段可能为 None）
+    result = {}
+    for itype, value in intermediate.items():
+        if value is None:
+            result[itype] = None
+            continue
 
-    for itype in intermediate_types:
-        placeholder_filename = generate_result_filename(prefix=f"{model_key}_{itype}")
-        intermediate[itype] = f"/results/images/{placeholder_filename}"
+        if isinstance(value, np.ndarray):
+            result_filename = generate_result_filename(prefix=f"{model_key}_{itype}")
+            result_path = RESULTS_IMAGES_DIR / result_filename
+            save_image_rgb(value, result_path)
+            result[itype] = f"/results/images/{result_filename}"
+        elif isinstance(value, (str, Path)):
+            result[itype] = f"/results/images/{Path(value).name}"
+        else:
+            result[itype] = value
 
-    return {"intermediate": intermediate}
+    return {"intermediate": result}
