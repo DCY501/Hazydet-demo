@@ -6,6 +6,75 @@
 
 ---
 
+## 当前开发进展（截至 2026-06-18）
+
+### 已完成
+
+#### 后端
+- [x] FastAPI 项目框架搭建（`backend/app/main.py`）
+- [x] 模型管理器重构为工厂模式（`backend/app/models/`）
+  - `base_model.py`：统一接口 `HazyDetModel`
+  - `yolo_wrapper.py`：标准 YOLO 包装器（baseline）
+  - `phase1_model.py`：方案一占位类（当前复用 baseline 权重）
+  - `phase2_model.py`：方案二占位类（AFFM + RSM + RRAM）
+  - `model_factory.py`：按 key 创建模型实例
+- [x] 所有 API 路由实现基础版
+  - `POST /api/detect`：单图检测（支持 `beta` 加雾参数）
+  - `POST /api/compare`：三模型对比（支持 `beta` 加雾参数）
+  - `POST /api/haze`：加雾合成
+  - `POST /api/intermediate`：中间结果（占位）
+  - `POST /api/video`：视频检测（占位）
+  - `GET /api/detect/models`：模型列表
+- [x] 图像工具函数：`add_haze`、`save_upload_file`、`parse_detection_results`、`compute_metrics` 等
+- [x] CORS 配置修正
+- [x] 复制修改版 Ultralytics 到 `backend/ultralytics/`，确保 `phase2.pt` 能加载自定义模块
+- [x] 权重文件已就位（本地，不进 Git）
+  - `baseline.pt` ← `baseline_5beta_subset50_50e/weights/best.pt`
+  - `phase1.pt` ← 同上（暂时复用）
+  - `phase2.pt` ← `dehaze_v2_affm_rsm_rram_subset50_d02_recon_only_b8/weights/best.pt`
+
+#### 前端
+- [x] Vue 3 + TypeScript + Vite + Element Plus 脚手架搭建
+- [x] 路由配置：Home / Detect / Compare / Robustness / Intermediate / Video / About
+- [x] Pinia 状态管理（`stores/app.ts`）
+- [x] Axios 请求封装（`api/request.ts`、`api/detect.ts`、`api/models.ts`）
+- [x] 公共组件
+  - `AppLayout.vue`：左侧菜单 + 顶部栏
+  - `UploadBox.vue`：拖拽上传
+  - `ModelSelector.vue`：模型选择下拉
+  - `ResultCard.vue`：结果图 + 指标 + 检测列表
+  - `ImageCompare.vue`：多图对比布局
+- [x] 7 个页面基础版全部完成
+- [x] `npm run build` 编译通过
+- [x] `npm run dev` 开发服务器可正常启动
+
+#### 部署/工程
+- [x] GitHub 仓库创建并推送：`https://github.com/DCY501/Hazydet-Demo`
+- [x] `.gitignore` 配置：排除 `node_modules/`、`dist/`、`__pycache__/`、`.pt`、运行时生成的 `results/`、`auto-imports.d.ts` 等
+- [x] `README.md` 编写
+
+### 待实现/待完善
+
+#### 后端
+- [ ] **中间结果真实提取**：`phase1_model.intermediate()` 返回真实去雾图；`phase2_model.intermediate()` 返回真实 Ĵ / t / A / reconstruction
+- [ ] **视频检测完整逻辑**：`video_service.py` 逐帧读取、推理、画框、写视频
+- [ ] **后端启动验证**：在当前 Python 环境里启动 `uvicorn`，确认三个模型都能正常加载
+- [ ] **错误处理增强**：模型加载失败、推理异常时的友好返回
+- [ ] **指标丰富**：mAP、FPS、参数量/计算量展示（可选）
+
+#### 前端
+- [ ] **UI 美化**：主题色统一、动画、响应式细节、空状态/错误状态处理
+- [ ] **图表可视化**：Compare 页面增加柱状图/折线图；Robustness 页面绘制目标数随 beta 变化曲线（ECharts 尚未引入）
+- [ ] **进度条**：视频检测、批量鲁棒性分析的进度展示
+- [ ] **图片预览优化**：原图与结果图联动对比
+- [ ] **结果下载**：检测图、视频下载按钮
+
+#### 部署
+- [ ] `deploy/nginx.conf` 与 `deploy/hazydet.service` 尚未创建
+- [ ] 生产环境打包与部署验证
+
+---
+
 ## 一、技术选型
 
 ### 前端
@@ -52,27 +121,36 @@ Hazydet-demo/
 ├── backend/                          # FastAPI 后端
 │   ├── app/
 │   │   ├── __init__.py
-│   │   ├── main.py                   # FastAPI 应用入口
+│   │   ├── main.py                   # FastAPI 应用入口（已配置优先加载本地 ultralytics）
 │   │   ├── config.py                 # 配置（模型路径、结果目录）
+│   │   ├── models/                   # 模型结构（独立模块）
+│   │   │   ├── __init__.py
+│   │   │   ├── base_model.py         # HazyDetModel 统一接口
+│   │   │   ├── yolo_wrapper.py       # 标准 YOLO 包装器（baseline）
+│   │   │   ├── phase1_model.py       # 方案一占位类
+│   │   │   ├── phase2_model.py       # 方案二占位类
+│   │   │   └── model_factory.py      # 模型工厂
 │   │   ├── routers/                  # API 路由
 │   │   │   ├── __init__.py
 │   │   │   ├── detect.py             # 单模型检测
 │   │   │   ├── compare.py            # 三模型对比
 │   │   │   ├── haze.py               # 加雾合成
-│   │   │   └── video.py              # 视频检测
+│   │   │   ├── intermediate.py       # 中间结果
+│   │   │   └── video.py              # 视频检测（占位）
 │   │   ├── services/                 # 业务逻辑
 │   │   │   ├── __init__.py
 │   │   │   ├── model_manager.py      # 模型加载/管理
 │   │   │   ├── image_service.py      # 图片检测逻辑
-│   │   │   └── video_service.py      # 视频检测逻辑
+│   │   │   └── video_service.py      # 视频检测逻辑（待实现）
 │   │   └── utils/
 │   │       ├── __init__.py
 │   │       └── image_utils.py        # 图像工具（加雾、画框等）
-│   ├── weights/                      # 模型权重
+│   ├── ultralytics/                  # 修改版 Ultralytics 源码（含 AFFM/RSM/RRAM）
+│   ├── weights/                      # 模型权重（本地，不进 Git）
 │   │   ├── baseline.pt
 │   │   ├── phase1.pt
 │   │   └── phase2.pt
-│   ├── results/                      # 检测结果输出
+│   ├── results/                      # 检测结果输出（运行时生成）
 │   │   ├── images/
 │   │   └── videos/
 │   ├── requirements.txt
@@ -81,39 +159,41 @@ Hazydet-demo/
 │   ├── src/
 │   │   ├── api/                      # Axios 请求封装
 │   │   │   ├── detect.ts
-│   │   │   ├── compare.ts
-│   │   │   └── video.ts
+│   │   │   └── models.ts
 │   │   ├── assets/                   # 静态资源
-│   │   │   ├── logo.png
 │   │   │   └── styles/
-│   │   │       └── variables.scss
+│   │   │       └── main.scss
 │   │   ├── components/               # 公共组件
-│   │   │   ├── ImageUploader.vue
-│   │   │   ├── DetectionResult.vue
+│   │   │   ├── AppLayout.vue
+│   │   │   ├── UploadBox.vue
 │   │   │   ├── ModelSelector.vue
-│   │   │   ├── MetricCard.vue
-│   │   │   └── CompareLayout.vue
+│   │   │   ├── ResultCard.vue
+│   │   │   └── ImageCompare.vue
 │   │   ├── router/
 │   │   │   └── index.ts
 │   │   ├── stores/
-│   │   │   └── demoStore.ts
+│   │   │   └── app.ts
 │   │   ├── views/                    # 页面
-│   │   │   ├── HomeView.vue          # 首页
-│   │   │   ├── DetectView.vue        # 单模型检测
-│   │   │   ├── CompareView.vue       # 三模型对比
-│   │   │   ├── RobustnessView.vue    # 浓度鲁棒性
-│   │   │   ├── IntermediateView.vue  # 中间结果
-│   │   │   ├── VideoView.vue         # 视频检测
-│   │   │   └── AboutView.vue         # 项目介绍
+│   │   │   ├── Home.vue
+│   │   │   ├── Detect.vue
+│   │   │   ├── Compare.vue
+│   │   │   ├── Robustness.vue
+│   │   │   ├── Intermediate.vue
+│   │   │   ├── Video.vue
+│   │   │   └── About.vue
 │   │   ├── App.vue
 │   │   └── main.ts
 │   ├── public/
+│   │   └── hazydet.svg
 │   ├── package.json
+│   ├── package-lock.json
 │   ├── tsconfig.json
+│   ├── tsconfig.node.json
 │   ├── vite.config.ts
 │   └── index.html
 ├── README.md
-└── deploy/                           # 部署脚本
+├── .gitignore
+└── deploy/                           # 部署脚本（待创建）
     ├── nginx.conf
     └── hazydet.service
 ```
@@ -122,7 +202,7 @@ Hazydet-demo/
 
 ## 三、功能模块
 
-### 3.1 首页（Home）
+### 3.1 首页（Home） ✅ 已完成基础版
 
 - 项目标题和简介
 - 三个核心亮点卡片：
@@ -130,18 +210,18 @@ Hazydet-demo/
   - 5-beta 多浓度雾天数据
   - 检测性能提升
 - 快速入口按钮
-- 技术路线图
+- 模型状态显示（已接入 `/api/detect/models`）
 
-### 3.2 单图检测（Detect）
+### 3.2 单图检测（Detect） ✅ 已完成基础版
 
 - 图片上传/拖拽
 - 模型选择：baseline / 方案一 / 方案二
-- 原图预览
-- 检测结果图（带 bbox、类别、置信度）
-- 检测指标：目标数、平均置信度、类别分布
+- 可选 `beta` 加雾
+- 结果图（带 bbox、类别、置信度）
+- 检测指标：目标数、平均置信度、推理耗时
 - 检测结果列表
 
-### 3.3 三模型对比（Compare）★核心
+### 3.3 三模型对比（Compare） ✅ 已完成基础版
 
 - 上传一张图片
 - 三个模型并排显示结果
@@ -150,17 +230,19 @@ Hazydet-demo/
   - 目标数
   - 平均置信度
   - 检出目标列表
-- 底部汇总表格/柱状图对比
+- 支持 `beta` 加雾后对比
+- 待完善：底部汇总表格/柱状图
 
-### 3.4 浓度鲁棒性（Robustness）
+### 3.4 浓度鲁棒性（Robustness） ✅ 已完成基础版
 
 - 上传清晰图
-- 一键生成 5 种 beta 浓度的雾图
-- 对每种浓度用方案二检测
-- 展示 5 张结果图
-- 绘制目标数随 beta 变化曲线
+- 自定义 beta 范围和步长
+- 对每个 beta 调用检测
+- 展示结果图矩阵
+- 指标汇总表格
+- 待完善：目标数随 beta 变化曲线图
 
-### 3.5 中间结果可视化（Intermediate）
+### 3.5 中间结果可视化（Intermediate） ✅ 页面已完成，后端待完善
 
 展示各方案的中间输出，帮助理解模型为什么有效。
 
@@ -168,42 +250,44 @@ Hazydet-demo/
 
 - 输入：有雾图
 - 中间输出：
-  - **去雾增强图**：AOD-Net 输出的清晰化图像
+  - **去雾增强图**：AOD-Net 输出的清晰化图像（当前为占位）
   - **检测结果图**：在去雾增强图上做检测的结果
 
 #### 方案二（AFFM + RSM 多任务检测）
 
 - 输入：有雾图
 - 中间输出：
-  - **透射率图 `t`**：雾的浓度分布，越亮表示透射率越高（雾越淡）
-  - **清晰图 `Ĵ`**：RSM 预测的无雾图像
-  - **大气光 `A`**：全局大气光颜色，以颜色块 + RGB 数值显示
-  - **重构图 `Ĵ·t + A·(1-t)`**：验证物理一致性
+  - **透射率图 `t`**：雾的浓度分布（当前为占位）
+  - **清晰图 `Ĵ`**：RSM 预测的无雾图像（当前为占位）
+  - **大气光 `A`**：全局大气光颜色（当前为占位）
+  - **重构图 `Ĵ·t + A·(1-t)`**：验证物理一致性（当前为占位）
   - **检测结果图**：最终检测输出
 
 #### baseline
 
 - 无中间结果，仅显示检测结果图。
 
-### 3.6 视频检测（Video）
+### 3.6 视频检测（Video） 🚧 页面已完成，后端待实现
 
 - 上传短视频
 - 选择模型
-- 后端逐帧处理
-- 显示处理进度条
-- 播放结果视频
-- 下载结果视频
+- 后端逐帧处理（待实现）
+- 显示处理进度条（待实现）
+- 播放结果视频（待实现）
+- 下载结果视频（待实现）
 
-### 3.7 项目介绍（About）
+### 3.7 项目介绍（About） ✅ 已完成基础版
 
 - 方法简介
-- 网络架构图
-- 实验指标表
-- 团队成员
+- 网络架构图（文字版）
+- 技术栈说明
+- 待完善：实验指标表、团队成员
 
 ---
 
 ## 四、后端 API 设计
+
+> 注意：实际实现中上传字段从 `image` 改为 `file`，并增加了 `beta` 加雾参数。
 
 ### 4.1 单图检测
 
@@ -216,8 +300,9 @@ Content-Type: multipart/form-data
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `image` | File | 图片文件 |
+| `file` | File | 图片文件 |
 | `model` | String | `baseline` / `phase1` / `phase2` |
+| `beta` | Float | 可选，雾浓度，不传或 0 则不加雾 |
 
 返回：
 
@@ -226,12 +311,15 @@ Content-Type: multipart/form-data
   "success": true,
   "model": "phase2",
   "result_url": "/results/images/phase2_xxx.jpg",
-  "count": 12,
-  "avg_confidence": 0.72,
+  "metrics": {
+    "count": 12,
+    "avg_conf": 0.72,
+    "inference_ms": 23.5
+  },
   "detections": [
-    {"class": "car", "confidence": 0.89, "bbox": [100, 200, 300, 400]}
+    {"class_name": "car", "confidence": 0.89, "bbox": [100, 200, 300, 400]}
   ],
-  "class_distribution": {"car": 5, "person": 3, ...}
+  "class_distribution": {"car": 5, "person": 3}
 }
 ```
 
@@ -246,7 +334,8 @@ Content-Type: multipart/form-data
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `image` | File | 图片文件 |
+| `file` | File | 图片文件 |
+| `beta` | Float | 可选，雾浓度 |
 
 返回：
 
@@ -255,9 +344,9 @@ Content-Type: multipart/form-data
   "success": true,
   "results": {
     "baseline": {
+      "name": "Baseline",
       "result_url": "/results/images/baseline_xxx.jpg",
-      "count": 8,
-      "avg_confidence": 0.61,
+      "metrics": {"count": 8, "avg_conf": 0.61, "inference_ms": 20.0},
       "detections": [...]
     },
     "phase1": {...},
@@ -269,7 +358,7 @@ Content-Type: multipart/form-data
 ### 4.3 加雾合成
 
 ```http
-POST /api/haze/synthesize
+POST /api/haze
 Content-Type: multipart/form-data
 ```
 
@@ -277,7 +366,7 @@ Content-Type: multipart/form-data
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `image` | File | 清晰图片 |
+| `file` | File | 清晰图片 |
 | `beta` | Float | 雾浓度 |
 
 返回：
@@ -292,7 +381,7 @@ Content-Type: multipart/form-data
 ### 4.4 视频检测
 
 ```http
-POST /api/video/detect
+POST /api/video
 Content-Type: multipart/form-data
 ```
 
@@ -300,34 +389,15 @@ Content-Type: multipart/form-data
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `video` | File | 视频文件 |
+| `file` | File | 视频文件 |
 | `model` | String | 模型名称 |
 
-返回（异步或同步）：
+当前返回（占位）：
 
 ```json
 {
-  "success": true,
-  "task_id": "xxx",
-  "status": "processing"
-}
-```
-
-查询进度：
-
-```http
-GET /api/video/status/{task_id}
-```
-
-返回结果：
-
-```json
-{
-  "success": true,
-  "status": "completed",
-  "result_url": "/results/videos/output_xxx.mp4",
-  "fps": 15,
-  "duration": 10
+  "success": false,
+  "message": "视频检测功能开发中"
 }
 ```
 
@@ -342,7 +412,7 @@ Content-Type: multipart/form-data
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `image` | File | 图片文件 |
+| `file` | File | 图片文件 |
 | `model` | String | `baseline` / `phase1` / `phase2` |
 
 返回：
@@ -352,10 +422,11 @@ Content-Type: multipart/form-data
   "success": true,
   "model": "phase2",
   "result_url": "/results/images/phase2_xxx.jpg",
+  "metrics": {"count": 12, "avg_conf": 0.72, "inference_ms": 23.5},
   "intermediate": {
-    "clear": "/results/images/phase2_xxx_j.jpg",
+    "jhat": "/results/images/phase2_xxx_jhat.jpg",
     "transmission": "/results/images/phase2_xxx_t.jpg",
-    "atmosphere": [0.75, 0.78, 0.80],
+    "atmosphere": "/results/images/phase2_xxx_a.jpg",
     "reconstruction": "/results/images/phase2_xxx_recon.jpg"
   }
 }
@@ -367,7 +438,33 @@ Content-Type: multipart/form-data
 |---|---|
 | `baseline` | 无 |
 | `phase1` | `dehazed`：AOD-Net 去雾后的图像 |
-| `phase2` | `clear`（Ĵ）、`transmission`（t）、`atmosphere`（A）、`reconstruction` |
+| `phase2` | `jhat`（Ĵ）、`transmission`（t）、`atmosphere`（A）、`reconstruction` |
+
+### 4.6 模型列表
+
+```http
+GET /api/detect/models
+```
+
+返回：
+
+```json
+{
+  "success": true,
+  "models": {
+    "baseline": {
+      "key": "baseline",
+      "name": "Baseline",
+      "description": "原始 YOLOv8n，无去雾增强",
+      "available": true,
+      "has_intermediate": false,
+      "intermediate_types": []
+    },
+    "phase1": {...},
+    "phase2": {...}
+  }
+}
+```
 
 ---
 
@@ -375,53 +472,59 @@ Content-Type: multipart/form-data
 
 ### Week 1：基础框架（第 1-7 天）
 
-| 天数 | 前端任务 | 后端任务 |
-|---|---|---|
-| Day 1-2 | 搭建 Vue 3 + TS + Vite + Element Plus 项目；配置路由和布局 | 搭建 FastAPI 项目；实现模型管理器；加载三个模型 |
-| Day 3-4 | 实现图片上传组件；模型选择组件；结果展示组件 | 实现 `/api/detect` 单图检测接口 |
-| Day 5-6 | 完成 Detect 单图检测页面 | 实现 `/api/compare` 三模型对比接口 |
-| Day 7 | 联调 Detect + Compare 页面 | 联调接口；修复 bug |
+| 天数 | 前端任务 | 后端任务 | 状态 |
+|---|---|---|---|
+| Day 1-2 | 搭建 Vue 3 + TS + Vite + Element Plus 项目；配置路由和布局 | 搭建 FastAPI 项目；实现模型管理器；加载三个模型 | ✅ 已完成 |
+| Day 3-4 | 实现图片上传组件；模型选择组件；结果展示组件 | 实现 `/api/detect` 单图检测接口 | ✅ 已完成 |
+| Day 5-6 | 完成 Detect 单图检测页面 | 实现 `/api/compare` 三模型对比接口 | ✅ 已完成 |
+| Day 7 | 联调 Detect + Compare 页面 | 联调接口；修复 bug | ✅ 已完成 |
 
 ### Week 2：核心功能（第 8-14 天）
 
-| 天数 | 前端任务 | 后端任务 |
-|---|---|---|
-| Day 8-9 | 完成 Compare 三模型对比页面；添加指标卡片和柱状图 | 实现 `/api/haze/synthesize` 加雾接口 |
-| Day 10-11 | 完成 Robustness 浓度鲁棒性页面 | 实现 `/api/intermediate` 中间结果接口 |
-| Day 12-13 | 完成 Intermediate 中间结果可视化页面 | 调试中间结果输出（RSM 的 Ĵ/t/A） |
-| Day 14 | 完成 About 项目介绍页面 | 整理 API 文档 |
+| 天数 | 前端任务 | 后端任务 | 状态 |
+|---|---|---|---|
+| Day 8-9 | 完成 Compare 三模型对比页面；添加指标卡片和柱状图 | 实现 `/api/haze/synthesize` 加雾接口 | ✅ 基础版完成，图表待完善 |
+| Day 10-11 | 完成 Robustness 浓度鲁棒性页面 | 实现 `/api/intermediate` 中间结果接口 | ✅ 页面完成，后端中间结果待真实提取 |
+| Day 12-13 | 完成 Intermediate 中间结果可视化页面 | 调试中间结果输出（RSM 的 Ĵ/t/A） | 🚧 页面完成，后端待实现 |
+| Day 14 | 完成 About 项目介绍页面 | 整理 API 文档 | ✅ 基础版完成 |
 
 ### Week 3：视频 + 美化（第 15-20 天）
 
-| 天数 | 前端任务 | 后端任务 |
-|---|---|---|
-| Day 15-17 | 完成 Video 视频检测页面；进度条；结果播放 | 实现 `/api/video/detect` 视频处理接口 |
-| Day 18-19 | UI 美化：自定义主题、动画、响应式、 loading 效果 | 视频接口优化；错误处理 |
-| Day 20 | 部署测试；准备答辩样例图片/视频 | 部署后端服务；Nginx 配置 |
+| 天数 | 前端任务 | 后端任务 | 状态 |
+|---|---|---|---|
+| Day 15-17 | 完成 Video 视频检测页面；进度条；结果播放 | 实现 `/api/video/detect` 视频处理接口 | 🚧 均未完成 |
+| Day 18-19 | UI 美化：自定义主题、动画、响应式、 loading 效果 | 视频接口优化；错误处理 | 🚧 均未完成 |
+| Day 20 | 部署测试；准备答辩样例图片/视频 | 部署后端服务；Nginx 配置 | 🚧 均未完成 |
 
 ---
 
 ## 六、关键实现细节
 
-### 6.1 后端模型管理
+### 6.1 后端模型管理（已重构为工厂模式）
 
 ```python
 # app/services/model_manager.py
-from ultralytics import YOLO
-from functools import lru_cache
+from app.config import MODELS
+from app.models import create_model
 
 class ModelManager:
     def __init__(self):
-        self.models = {}
-        self.load_models()
-    
-    def load_models(self):
-        self.models["baseline"] = YOLO("weights/baseline.pt")
-        self.models["phase1"] = YOLO("weights/phase1.pt")
-        self.models["phase2"] = YOLO("weights/phase2.pt")
-    
-    def get(self, name: str) -> YOLO:
-        return self.models.get(name)
+        self._models = {}
+        self._availability = {}
+        self._load_models()
+
+    def _load_models(self):
+        for key, cfg in MODELS.items():
+            path = cfg["path"]
+            if path.exists():
+                self._models[key] = create_model(key, path)
+                self._availability[key] = True
+
+    def get(self, model_key: str):
+        return self._models.get(model_key)
+
+    def is_available(self, model_key: str) -> bool:
+        return self._availability.get(model_key, False)
 
 model_manager = ModelManager()
 ```
@@ -429,22 +532,22 @@ model_manager = ModelManager()
 ### 6.2 前端状态管理
 
 ```typescript
-// stores/demoStore.ts
+// stores/app.ts
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-export const useDemoStore = defineStore('demo', () => {
-  const currentImage = ref<string>('')
-  const selectedModel = ref<string>('phase2')
-  const detectionResult = ref<any>(null)
-  const compareResult = ref<any>(null)
-  
-  return {
-    currentImage,
-    selectedModel,
-    detectionResult,
-    compareResult
+export const useAppStore = defineStore('app', () => {
+  const availableModels = ref<ModelInfo[]>([])
+  const loading = ref(false)
+  const sidebarCollapsed = ref(false)
+
+  async function fetchModels() {
+    const res: any = await getModels()
+    const models = res.models || {}
+    availableModels.value = Object.values(models)
   }
+
+  return { availableModels, loading, sidebarCollapsed, fetchModels }
 })
 ```
 
@@ -481,7 +584,7 @@ cd backend
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-python run.py
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 生产环境：
@@ -500,7 +603,7 @@ npm run build
 
 产物在 `frontend/dist/`。
 
-### 7.3 Nginx 配置
+### 7.3 Nginx 配置（待创建）
 
 ```nginx
 server {
@@ -525,7 +628,7 @@ server {
 }
 ```
 
-### 7.4 systemd 服务
+### 7.4 systemd 服务（待创建）
 
 ```ini
 [Unit]
@@ -573,13 +676,10 @@ WantedBy=multi-user.target
 
 ---
 
-## 九、我可以帮你做的
+## 九、下一步建议
 
-1. **后端完整代码**：FastAPI 项目、模型管理、所有 API 接口
-2. **前端核心组件**：上传组件、对比布局、结果展示、图表
-3. **项目初始化**：Vue 3 + Vite + Element Plus 脚手架
-4. **部署脚本**：Nginx 配置、systemd 服务
-5. **Bug 调试**：训练/推理/前后端联调问题
-6. **UI 美化建议**：布局、配色、动画
-
-你可以选择一个起点，我们开始写代码。建议先从**后端单图检测 API** 开始，因为它是一切功能的基础。
+1. **验证后端启动**：在自己的 Python 环境里启动 `uvicorn`，确认三个模型都能加载成功
+2. **完善中间结果**：实现 `phase1_model.intermediate()` 和 `phase2_model.intermediate()`
+3. **实现视频检测**：添加 `video_service.py` 完整逻辑
+4. **前端美化与图表**：引入 ECharts，优化 Compare / Robustness 可视化
+5. **部署脚本**：创建 `deploy/nginx.conf` 和 `deploy/hazydet.service`
