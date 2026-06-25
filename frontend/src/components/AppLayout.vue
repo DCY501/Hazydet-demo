@@ -46,7 +46,7 @@
       </el-menu>
     </el-aside>
 
-    <el-container>
+    <el-container class="main-container">
       <el-header class="header">
         <div class="header-left">
           <el-button text @click="store.toggleSidebar">
@@ -94,12 +94,17 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .app-layout {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .sidebar {
   background: #1e293b;
   transition: width 0.3s;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex-shrink: 0;
 }
 
 .logo {
@@ -109,6 +114,7 @@ onMounted(() => {
   justify-content: center;
   color: #38bdf8;
   border-bottom: 1px solid #334155;
+  flex-shrink: 0;
 
   .logo-text {
     margin-left: 10px;
@@ -122,12 +128,21 @@ onMounted(() => {
   border-right: none;
 }
 
+.main-container {
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   background: #ffffff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+  height: 60px;
 }
 
 .header-left {
@@ -146,5 +161,7 @@ onMounted(() => {
 .main-content {
   background: #f8fafc;
   padding: 20px;
+  overflow-y: auto;
+  flex: 1;
 }
 </style>

@@ -92,7 +92,8 @@ withDefaults(
 
 .image-wrapper {
   width: 100%;
-  height: 360px;
+  min-height: 200px;
+  max-height: 480px;
   background: #f8fafc;
   border-radius: 8px;
   overflow: hidden;
@@ -103,7 +104,16 @@ withDefaults(
 
 .result-image {
   width: 100%;
-  height: 100%;
+  height: auto;
+
+  :deep(img) {
+    max-width: 100%;
+    max-height: 480px;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+  }
 }
 
 .image-placeholder {

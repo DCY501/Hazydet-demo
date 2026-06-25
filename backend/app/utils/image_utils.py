@@ -46,17 +46,29 @@ def validate_video(file: UploadFile) -> None:
         )
 
 
-def save_upload_file(file: UploadFile, suffix: str = ".jpg") -> Path:
+def save_upload_file(file: UploadFile, suffix: str = ".jpg", filename: str = "") -> Path:
     """保存上传的文件到结果目录，返回保存路径。"""
-    filename = f"upload_{uuid.uuid4().hex}{suffix}"
-    save_path = RESULTS_IMAGES_DIR / filename
+    if filename:
+        # 确保后缀正确
+        if not filename.lower().endswith(suffix.lower()):
+            filename = f"{Path(filename).stem}{suffix}"
+    else:
+        filename = f"upload_{uuid.uuid4().hex}{suffix}"
+
+    # 根据后缀判断保存目录
+    if suffix.lower() in ALLOWED_VIDEO_EXTENSIONS:
+        save_dir = RESULTS_VIDEOS_DIR
+    else:
+        save_dir = RESULTS_IMAGES_DIR
+
+    save_path = save_dir / filename
     contents = file.file.read()
 
     # 检查大小
     size_mb = len(contents) / (1024 * 1024)
-    if suffix in ALLOWED_IMAGE_EXTENSIONS and size_mb > MAX_IMAGE_SIZE_MB:
+    if suffix.lower() in ALLOWED_IMAGE_EXTENSIONS and size_mb > MAX_IMAGE_SIZE_MB:
         raise HTTPException(status_code=413, detail=f"图片过大，超过 {MAX_IMAGE_SIZE_MB}MB")
-    if suffix in ALLOWED_VIDEO_EXTENSIONS and size_mb > MAX_VIDEO_SIZE_MB:
+    if suffix.lower() in ALLOWED_VIDEO_EXTENSIONS and size_mb > MAX_VIDEO_SIZE_MB:
         raise HTTPException(status_code=413, detail=f"视频过大，超过 {MAX_VIDEO_SIZE_MB}MB")
 
     save_path.write_bytes(contents)
@@ -106,6 +118,69 @@ def add_haze(image: np.ndarray, beta: float = 1.35, atmosphere: float = 0.82) ->
     img = image.astype(np.float32) / 255.0
     hazy = img * transmission + atmosphere * (1.0 - transmission)
     return np.clip(hazy * 255.0, 0, 255).astype(np.uint8)
+
+
+def draw_boxes_on_image(
+    image: np.ndarray,
+    detections: list,
+    color: Tuple[int, int, int] = (0, 200, 255),
+    thickness: int = 2,
+    font_scale: float = 0.5,
+) -> np.ndarray:
+    """
+    在原图上绘制检测框和标签。
+
+    Args:
+        image: 原图，RGB 格式，uint8
+        detections: parse_detection_results 返回的检测框列表
+        color: 框颜色 (B, G, R)
+        thickness: 框线宽
+        font_scale: 字体大小
+
+    Returns:
+        绘制后的图像，RGB 格式
+    """
+    img = image.copy()
+    h, w = img.shape[:2]
+
+    for det in detections:
+        x1, y1, x2, y2 = map(int, det["bbox"])
+        x1 = max(0, min(x1, w))
+        y1 = max(0, min(y1, h))
+        x2 = max(0, min(x2, w))
+        y2 = max(0, min(y2, h))
+        conf = det["confidence"]
+        cls_name = det["class_name"]
+        label = f"{cls_name} {conf:.2f}"
+
+        # 框
+        cv2.rectangle(img, (x1, y1), (x2, y2), color, thickness)
+
+        # 标签背景
+        (text_w, text_h), _ = cv2.getTextSize(
+            label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness
+        )
+        cv2.rectangle(
+            img,
+            (x1, y1 - text_h - 6),
+            (x1 + text_w, y1),
+            color,
+            -1,
+        )
+
+        # 标签文字（白色）
+        cv2.putText(
+            img,
+            label,
+            (x1, y1 - 3),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            font_scale,
+            (255, 255, 255),
+            thickness,
+            cv2.LINE_AA,
+        )
+
+    return img
 
 
 def parse_detection_results(result) -> Tuple[list, dict]:

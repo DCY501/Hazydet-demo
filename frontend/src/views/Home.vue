@@ -12,10 +12,14 @@
               中间结果可视化与视频检测。
             </p>
             <div class="actions">
-              <el-button type="primary" size="large" @click="$router.push('/detect')">
-                开始检测
+              <el-button type="primary" size="large" @click="goDetect">
+                <el-icon class="btn-icon"><Picture /></el-icon>
+                快速检测
               </el-button>
-              <el-button size="large" @click="$router.push('/compare')">三模型对比</el-button>
+              <el-button size="large" @click="goVideo">
+                <el-icon class="btn-icon"><VideoCamera /></el-icon>
+                视频检测
+              </el-button>
             </div>
           </div>
         </el-card>
@@ -59,6 +63,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import {
   Monitor,
@@ -70,6 +75,7 @@ import {
 } from '@element-plus/icons-vue'
 
 const store = useAppStore()
+const router = useRouter()
 const loading = computed(() => store.availableModels.length === 0)
 
 const features = [
@@ -83,6 +89,15 @@ const features = [
 onMounted(() => {
   store.fetchModels()
 })
+
+function goDetect() {
+  store.clearCurrentFile()
+  router.push('/detect')
+}
+
+function goVideo() {
+  router.push('/video')
+}
 </script>
 
 <style scoped lang="scss">
@@ -127,6 +142,10 @@ h1 {
   display: flex;
   justify-content: center;
   gap: 16px;
+
+  .btn-icon {
+    margin-right: 6px;
+  }
 }
 
 .feature-row {

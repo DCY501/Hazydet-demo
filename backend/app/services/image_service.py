@@ -11,6 +11,7 @@ from app.services.model_manager import model_manager
 from app.utils.image_utils import (
     add_haze,
     compute_metrics,
+    draw_boxes_on_image,
     generate_result_filename,
     parse_detection_results,
     read_image_rgb,
@@ -35,14 +36,16 @@ def detect_image(input_path: Path, model_key: str) -> dict:
     model = model_manager.get(model_key)
     result = model.predict(input_path)
 
-    # 保存结果图
-    result_filename = generate_result_filename(prefix=model_key)
-    result_path = RESULTS_IMAGES_DIR / result_filename
-    result.save(str(result_path))
-
     # 解析结果
     detections, class_distribution = parse_detection_results(result)
     metrics = compute_metrics(detections)
+
+    # 在原图上绘制检测框并保存
+    original_image = read_image_rgb(input_path)
+    result_filename = generate_result_filename(prefix=model_key)
+    result_path = RESULTS_IMAGES_DIR / result_filename
+    plotted_image = draw_boxes_on_image(original_image, detections)
+    save_image_rgb(plotted_image, result_path)
 
     # 提取推理耗时（YOLO speed 字典包含 preprocess/inference/postprocess，单位 ms）
     inference_ms = 0.0

@@ -7,7 +7,7 @@
 
       <el-row :gutter="20" align="middle">
         <el-col :xs="24" :md="10">
-          <UploadBox v-model="file" @change="handleFileChange" />
+          <UploadBox v-model="file" @change="handleFileChange" @clear="handleClear" />
         </el-col>
         <el-col :xs="24" :md="8">
           <el-form label-position="top">
@@ -37,6 +37,23 @@
       </el-row>
     </el-card>
 
+    <!-- 原图展示 -->
+    <el-card shadow="never" class="original-card" v-if="previewUrl">
+      <template #header>
+        <span>原图</span>
+      </template>
+      <el-image :src="previewUrl" fit="contain" class="original-image" />
+    </el-card>
+
+    <!-- 目标数随 beta 变化曲线 -->
+    <el-card shadow="never" class="chart-card" v-if="robustnessResults.length">
+      <template #header>
+        <span>目标数随雾浓度变化曲线</span>
+      </template>
+      <v-chart class="chart" :option="lineChartOption" autoresize />
+    </el-card>
+
+    <!-- 结果矩阵 -->
     <el-row :gutter="20" class="result-row">
       <el-col :xs="24" :md="12" v-for="item in robustnessResults" :key="item.beta">
         <ResultCard
@@ -49,6 +66,7 @@
       </el-col>
     </el-row>
 
+    <!-- 指标汇总 -->
     <el-card shadow="never" class="table-card" v-if="robustnessResults.length">
       <template #header>
         <span>指标汇总</span>
@@ -68,11 +86,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import UploadBox from '@/components/UploadBox.vue'
 import ModelSelector from '@/components/ModelSelector.vue'
 import ResultCard from '@/components/ResultCard.vue'
 import { detectImage } from '@/api/detect'
+import { useAppStore } from '@/stores/app'
+
+const store = useAppStore()
 
 const file = ref<File | null>(null)
 const model = ref('baseline')
@@ -80,9 +101,35 @@ const betaRange = ref([0, 2])
 const betaStep = ref(0.5)
 const loading = ref(false)
 const robustnessResults = ref<any[]>([])
+const previewUrl = ref('')
+
+function updatePreviewUrl(f: File | null) {
+  if (previewUrl.value) {
+    URL.revokeObjectURL(previewUrl.value)
+  }
+  previewUrl.value = f ? URL.createObjectURL(f) : ''
+}
+
+onMounted(() => {
+  if (store.currentFile) {
+    file.value = store.currentFile
+    updatePreviewUrl(store.currentFile)
+  }
+})
 
 function handleFileChange(f: File | null) {
   file.value = f
+  updatePreviewUrl(f)
+  robustnessResults.value = []
+  if (f) {
+    store.setCurrentFile(f)
+  }
+}
+
+function handleClear() {
+  file.value = null
+  updatePreviewUrl(null)
+  store.clearCurrentFile()
   robustnessResults.value = []
 }
 
@@ -118,13 +165,111 @@ async function handleRobustness() {
     loading.value = false
   }
 }
+
+const lineChartOption = computed(() => {
+  const data = robustnessResults.value
+    .filter((item) => item.metrics)
+    .map((item) => ({
+      beta: item.beta,
+      count: item.metrics.count ?? 0,
+      confidence: (item.metrics.avg_conf ?? 0) * 100,
+    }))
+
+  return {
+    tooltip: {
+      trigger: 'axis',
+    },
+    legend: {
+      data: ['检出目标数', '平均置信度 (%)'],
+      bottom: 0,
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '12%',
+      containLabel: true,
+    },
+    xAxis: {
+      type: 'category',
+      name: 'Beta',
+      data: data.map((item) => item.beta),
+    },
+    yAxis: [
+      {
+        type: 'value',
+        name: '目标数',
+        position: 'left',
+      },
+      {
+        type: 'value',
+        name: '置信度 (%)',
+        position: 'right',
+        min: 0,
+        max: 100,
+      },
+    ],
+    series: [
+      {
+        name: '检出目标数',
+        type: 'line',
+        data: data.map((item) => item.count),
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 8,
+        lineStyle: { color: '#3b82f6', width: 3 },
+        itemStyle: { color: '#3b82f6' },
+        areaStyle: {
+          color: 'rgba(59, 130, 246, 0.1)',
+        },
+      },
+      {
+        name: '平均置信度 (%)',
+        type: 'line',
+        yAxisIndex: 1,
+        data: data.map((item) => item.confidence.toFixed(1)),
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 8,
+        lineStyle: { color: '#10b981', width: 3 },
+        itemStyle: { color: '#10b981' },
+      },
+    ],
+  }
+})
 </script>
 
 <style scoped lang="scss">
 .robustness-page {
   .control-card,
+  .original-card,
+  .chart-card,
   .table-card {
     margin-bottom: 20px;
+  }
+
+  .original-image {
+    width: 100%;
+    min-height: 200px;
+    max-height: 400px;
+    background: #f8fafc;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    :deep(img) {
+      max-width: 100%;
+      max-height: 400px;
+      height: auto;
+      object-fit: contain;
+      display: block;
+    }
+  }
+
+  .chart {
+    width: 100%;
+    height: 400px;
   }
 
   .result-row {

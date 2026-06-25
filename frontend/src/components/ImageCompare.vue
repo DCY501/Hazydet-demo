@@ -66,15 +66,27 @@ const previewList = computed(() => {
 
 .compare-image {
   width: 100%;
-  height: 320px;
+  min-height: 160px;
+  max-height: 400px;
   background: #f8fafc;
   border-radius: 8px;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  :deep(img) {
+    max-width: 100%;
+    max-height: 400px;
+    height: auto;
+    object-fit: contain;
+    display: block;
+  }
 }
 
 .compare-placeholder {
   width: 100%;
-  height: 100%;
+  min-height: 160px;
   display: flex;
   align-items: center;
   justify-content: center;
